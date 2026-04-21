@@ -48,6 +48,10 @@ Propósito: orquestar la lógica de cada endpoint (recibir request, usar modelos
   - Qué hace: recepción pública de solicitudes de desarrollo y gestión admin de pipeline comercial.
   - Por qué existe: separa el funnel comercial del resto de dominios.
 
+- `challengeController.js`
+  - Qué hace: gestiona retos públicos por audiencia (`client`/`developer`), opciones visuales con imagen, clave correcta y respuestas sin login.
+  - Por qué existe: habilita dinámica de interacción con reglas de negocio (máximo 3 retos activos por audiencia).
+
 ### `middleware/`
 Propósito: validaciones y lógica transversal antes/después de controladores.
 
@@ -82,6 +86,14 @@ Propósito: definir entidades de base de datos.
   - Qué hace: almacena formularios de solicitud de desarrollo y estado comercial.
   - Por qué existe: permite seguimiento de leads desde el panel admin.
 
+- `challenge.model.js`
+  - Qué hace: almacena retos por audiencia con estado activo/inactivo.
+  - Por qué existe: modela el catálogo de retos disponibles en la web.
+
+- `challengeResponse.model.js`
+  - Qué hace: almacena respuestas de retos con `username` y `answer`.
+  - Por qué existe: separa las respuestas del reto y permite auditoría/consulta admin.
+
 ### `routes/`
 Propósito: mapa HTTP de la API.
 
@@ -109,6 +121,10 @@ Propósito: mapa HTTP de la API.
   - Qué hace: define endpoints para formulario público de solicitudes y su gestión admin.
   - Por qué existe: aísla la capa de captación comercial del resto del API.
 
+- `challenge.routes.js`
+  - Qué hace: define endpoints públicos para listar/responder retos y endpoints admin para gestión.
+  - Por qué existe: encapsula el dominio de retos como módulo independiente.
+
 ### `validators/`
 Propósito: centralizar y reutilizar reglas de validación de entrada.
 
@@ -131,6 +147,10 @@ Propósito: centralizar y reutilizar reglas de validación de entrada.
 - `leadValidators.js`
   - Qué hace: reglas para solicitud pública y actualización admin de leads.
   - Por qué existe: asegura datos mínimos para seguimiento comercial.
+
+- `challengeValidators.js`
+  - Qué hace: reglas para crear/editar retos, filtrar listados y registrar respuestas.
+  - Por qué existe: garantiza calidad de datos y cumplimiento de contratos del módulo de retos.
 
 ### `services/`
 Propósito: integraciones externas.

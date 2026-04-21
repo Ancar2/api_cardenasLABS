@@ -221,6 +221,88 @@ Este documento explica para qué sirve cada ruta, si es pública o requiere rol 
 - Acceso: `Privado Admin`
 - Propósito: eliminar solicitud.
 
+## Challenges (Retos para clientes y desarrolladores)
+
+### `GET /api/challenges`
+- Acceso: `Público`
+- Propósito: listar retos activos.
+- Query opcional: `audience=client|developer`
+
+### `POST /api/challenges/:id/responses`
+- Acceso: `Público`
+- Propósito: responder un reto con `username` y `answer` (sin login).
+- Restricción: un mismo `username` no puede responder el mismo reto más de una vez.
+- Body:
+```json
+{
+  "username": "dev_juan",
+  "answer": "Mi respuesta del reto"
+}
+```
+
+### `GET /api/challenges/admin/list`
+- Acceso: `Privado Admin`
+- Propósito: listar retos para administración.
+- Query opcional:
+  - `audience=client|developer`
+  - `isActive=true|false`
+
+### `POST /api/challenges/admin`
+- Acceso: `Privado Admin`
+- Propósito: crear reto.
+- Regla de negocio: máximo 3 retos activos por audiencia (`client` y `developer`).
+- Body:
+```json
+{
+  "audience": "client",
+  "category": "Branding & UX",
+  "title": "¿Cuál web transmite más confianza?",
+  "prompt": "Dos empresas ofrecen lo mismo. La diferencia está en cómo se presentan.",
+  "question": "¿Cuál de estas dos páginas te daría más confianza para comprar o contratar?",
+  "imageUrl": "https://cdn.site.com/challenges/comparison-cover.png",
+  "options": [
+    {
+      "key": "A",
+      "title": "Opción A",
+      "description": "Diseño saturado, mala jerarquía",
+      "imageUrl": "https://cdn.site.com/challenges/option-a.png"
+    },
+    {
+      "key": "B",
+      "title": "Opción B",
+      "description": "Diseño limpio, ordenado, moderno",
+      "imageUrl": "https://cdn.site.com/challenges/option-b.png"
+    }
+  ],
+  "correctOptionKey": "B",
+  "explanation": "La confianza digital depende de claridad y jerarquía visual.",
+  "isActive": true
+}
+```
+
+### `POST /api/challenges/admin/upload-image`
+- Acceso: `Privado Admin`
+- Propósito: subir imagen de reto u opción a S3 y obtener URL.
+- Body:
+```json
+{
+  "imageBase64": "data:image/png;base64,...."
+}
+```
+
+### `PUT /api/challenges/admin/:id`
+- Acceso: `Privado Admin`
+- Propósito: actualizar reto (audiencia, título, enunciado, estado activo).
+- Regla de negocio: sigue aplicando el máximo de 3 activos por audiencia.
+
+### `DELETE /api/challenges/admin/:id`
+- Acceso: `Privado Admin`
+- Propósito: eliminar reto y sus respuestas asociadas.
+
+### `GET /api/challenges/admin/:id/responses`
+- Acceso: `Privado Admin`
+- Propósito: ver todas las respuestas de un reto específico.
+
 ## Uploads y formatos
 
 - Las rutas de imagen usan Data URL base64 (`data:image/png;base64,...`).
