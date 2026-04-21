@@ -1,0 +1,40 @@
+{
+  "name": "mean-backend-base",
+  "version": "1.0.0",
+  "description": "base de api para el backend de la app",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "check": "node --check index.js && node --check config/loadEnv.js && node --check config/s3.js && node --check routes/routes.js && node --check routes/auth.routes.js && node --check routes/user.routes.js && node --check routes/project.routes.js && node --check routes/review.routes.js && node --check routes/lead.routes.js && node --check controllers/authController.js && node --check controllers/userController.js && node --check controllers/projectController.js && node --check controllers/reviewController.js && node --check controllers/leadController.js && node --check middleware/authMiddleware.js && node --check middleware/errorMiddleware.js && node --check middleware/validateMiddleware.js && node --check models/user.model.js && node --check models/project.model.js && node --check models/review.model.js && node --check models/lead.model.js && node --check services/emailService.js && node --check services/s3UploadService.js && node --check validators/authValidators.js && node --check validators/userValidators.js && node --check validators/projectValidators.js && node --check validators/reviewValidators.js && node --check validators/leadValidators.js"
+  },
+  "keywords": [
+    "mean",
+    "boilerplate",
+    "backend",
+    "api",
+    "node",
+    "express",
+    "mongo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0",
+    "@aws-sdk/client-secrets-manager": "^3.1032.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-async-handler": "^1.2.0",
+    "express-rate-limit": "^8.3.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.7"
+  }
+}
