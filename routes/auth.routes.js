@@ -8,6 +8,8 @@ const {
     registerValidation,
     forgotPasswordValidation,
     resetPasswordValidation,
+    verifyEmailValidation,
+    resendVerificationValidation,
 } = require('../validators/authValidators');
 
 const router = express.Router();
@@ -17,6 +19,13 @@ router.post('/login', loginValidation, validate, authController.loginUser);
 router.post('/logout', authController.logoutUser);
 router.post('/forgotpassword', forgotPasswordValidation, validate, authController.forgotPassword);
 router.put('/resetpassword/:resettoken', resetPasswordValidation, validate, authController.resetPassword);
+router.get('/verify-email/:verificationtoken', verifyEmailValidation, validate, authController.verifyEmail);
+router.post(
+    '/resend-verification-email',
+    resendVerificationValidation,
+    validate,
+    authController.resendVerificationEmail
+);
 router.get('/me', protect, authController.getMe);
 
 module.exports = router;

@@ -26,9 +26,21 @@ const resetPasswordValidation = [
         .withMessage('La nueva contraseña debe tener 6 o más caracteres'),
 ];
 
+const verifyEmailValidation = [
+    param('verificationtoken')
+        .isLength({ min: 40, max: 200 })
+        .withMessage('Token de verificación inválido'),
+];
+
+const resendVerificationValidation = [
+    body('email').isEmail().withMessage('Por favor incluye un email válido').normalizeEmail(),
+];
+
 module.exports = {
     loginValidation,
     registerValidation,
     forgotPasswordValidation,
     resetPasswordValidation,
+    verifyEmailValidation,
+    resendVerificationValidation,
 };

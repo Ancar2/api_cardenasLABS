@@ -31,6 +31,18 @@ const userSchema = mongoose.Schema(
             enum: ['user', 'admin'],
             default: 'user',
         },
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
+        emailVerificationToken: {
+            type: String,
+            select: false,
+        },
+        emailVerificationExpire: {
+            type: Date,
+            select: false,
+        },
         resetPasswordToken: String,
         resetPasswordExpire: Date,
         isActive: {
@@ -64,6 +76,20 @@ userSchema.methods.getResetPasswordToken = function () {
     this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
     return resetToken;
+};
+
+userSchema.methods.getEmailVerificationToken = function () {
+    const verificationToken = crypto.randomBytes(20).toString('hex');
+
+    this.emailVerificationToken = crypto
+        .createHash('sha256')
+        .update(verificationToken)
+        .digest('hex');
+
+    this.emailVerificationExpire =
+        Date.now() + Number(process.env.EMAIL_VERIFICATION_EXPIRE_MS || 24 * 60 * 60 * 1000);
+
+    return verificationToken;
 };
 
 const User = mongoose.model('User', userSchema);
