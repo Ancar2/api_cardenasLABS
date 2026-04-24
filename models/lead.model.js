@@ -18,6 +18,11 @@ const leadSchema = new mongoose.Schema(
             trim: true,
             default: '',
         },
+        nit: {
+            type: String,
+            trim: true,
+            default: '',
+        },
         phone: {
             type: String,
             trim: true,
@@ -33,6 +38,11 @@ const leadSchema = new mongoose.Schema(
             trim: true,
             default: '',
         },
+        resumen: {
+            type: String,
+            trim: true,
+            default: '',
+        },
         message: {
             type: String,
             required: [true, 'La descripcion del requerimiento es requerida'],
@@ -40,8 +50,13 @@ const leadSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['new', 'contacted', 'qualified', 'closed'],
+            enum: ['new', 'contacted', 'approved', 'rejected'],
             default: 'new',
+        },
+        rejectionReason: {
+            type: String,
+            trim: true,
+            default: '',
         },
         source: {
             type: String,

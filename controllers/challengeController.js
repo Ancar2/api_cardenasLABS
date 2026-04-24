@@ -120,7 +120,34 @@ const listAdminChallenges = asyncHandler(async (req, res) => {
         filter.isActive = req.query.isActive === 'true';
     }
 
-    const challenges = await Challenge.find(filter).sort({ audience: 1, createdAt: -1 });
+    const challenges = await Challenge.aggregate([
+        { $match: filter },
+        {
+            $lookup: {
+                from: 'challengeresponses',
+                localField: '_id',
+                foreignField: 'challenge',
+                as: 'responses',
+            },
+        },
+        {
+            $addFields: {
+                responsesCount: { $size: '$responses' },
+            },
+        },
+        {
+            $project: {
+                responses: 0,
+            },
+        },
+        {
+            $sort: {
+                audience: 1,
+                createdAt: -1,
+            },
+        },
+    ]);
+
     sendResponse(res, 200, challenges, 'Retos (admin)');
 });
 

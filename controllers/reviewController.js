@@ -65,19 +65,14 @@ const updateReviewModeration = asyncHandler(async (req, res) => {
         throw new Error('Reseña no encontrada');
     }
 
-    const { status, isPublished } = req.body;
+    const { status } = req.body;
 
     if (status !== undefined) {
         review.status = status;
     }
 
-    if (isPublished !== undefined) {
-        review.isPublished = isPublished;
-    }
-
-    if (review.status !== 'approved') {
-        review.isPublished = false;
-    }
+    // Regla de negocio: aprobada = publicada, cualquier otro estado = no publicada.
+    review.isPublished = review.status === 'approved';
 
     review.reviewedBy = req.user._id;
     review.reviewedAt = new Date();

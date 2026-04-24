@@ -10,6 +10,11 @@ const submitLeadValidation = [
         .trim()
         .isLength({ max: 120 })
         .withMessage('La empresa no puede exceder 120 caracteres'),
+    body('nit')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 40 })
+        .withMessage('El NIT no puede exceder 40 caracteres'),
     body('phone')
         .optional({ checkFalsy: true })
         .trim()
@@ -21,6 +26,11 @@ const submitLeadValidation = [
         .trim()
         .isLength({ max: 120 })
         .withMessage('El presupuesto no puede exceder 120 caracteres'),
+    body('resumen')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 280 })
+        .withMessage('El resumen no puede exceder 280 caracteres'),
     body('message')
         .trim()
         .notEmpty()
@@ -32,7 +42,7 @@ const submitLeadValidation = [
 const listLeadsValidation = [
     query('status')
         .optional()
-        .isIn(['new', 'contacted', 'qualified', 'closed'])
+        .isIn(['new', 'contacted', 'approved', 'rejected'])
         .withMessage('status inválido'),
 ];
 
@@ -45,6 +55,11 @@ const updateLeadValidation = [
         .trim()
         .isLength({ max: 120 })
         .withMessage('La empresa no puede exceder 120 caracteres'),
+    body('nit')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 40 })
+        .withMessage('El NIT no puede exceder 40 caracteres'),
     body('phone')
         .optional({ checkFalsy: true })
         .trim()
@@ -60,6 +75,11 @@ const updateLeadValidation = [
         .trim()
         .isLength({ max: 120 })
         .withMessage('El presupuesto no puede exceder 120 caracteres'),
+    body('resumen')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 280 })
+        .withMessage('El resumen no puede exceder 280 caracteres'),
     body('message')
         .optional()
         .trim()
@@ -69,8 +89,18 @@ const updateLeadValidation = [
         .withMessage('La descripción no puede exceder 3000 caracteres'),
     body('status')
         .optional()
-        .isIn(['new', 'contacted', 'qualified', 'closed'])
+        .isIn(['new', 'contacted', 'approved', 'rejected'])
         .withMessage('status inválido'),
+    body('rejectionReason')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('El motivo no puede exceder 500 caracteres'),
+    body('rejectionReason')
+        .if(body('status').equals('rejected'))
+        .trim()
+        .notEmpty()
+        .withMessage('El motivo es obligatorio cuando la solicitud es rechazada'),
 ];
 
 module.exports = {

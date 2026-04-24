@@ -3,15 +3,17 @@ const Lead = require('../models/lead.model');
 const sendResponse = require('../utils/sendResponse');
 
 const submitLead = asyncHandler(async (req, res) => {
-    const { name, email, company, phone, projectType, budget, message } = req.body;
+    const { name, email, company, nit, phone, projectType, budget, resumen, message } = req.body;
 
     const lead = await Lead.create({
         name,
         email,
         company,
+        nit,
         phone,
         projectType,
         budget,
+        resumen,
         message,
         source: 'website',
         status: 'new',
@@ -52,12 +54,29 @@ const updateLead = asyncHandler(async (req, res) => {
         throw new Error('Solicitud no encontrada');
     }
 
-    const fields = ['name', 'email', 'company', 'phone', 'projectType', 'budget', 'message', 'status'];
+    const fields = [
+        'name',
+        'email',
+        'company',
+        'nit',
+        'phone',
+        'projectType',
+        'budget',
+        'resumen',
+        'message',
+        'status',
+        'rejectionReason',
+    ];
+
     fields.forEach((field) => {
         if (req.body[field] !== undefined) {
             lead[field] = req.body[field];
         }
     });
+
+    if (req.body.status && req.body.status !== 'rejected' && req.body.rejectionReason === undefined) {
+        lead.rejectionReason = '';
+    }
 
     const updatedLead = await lead.save();
     sendResponse(res, 200, updatedLead, 'Solicitud actualizada');
