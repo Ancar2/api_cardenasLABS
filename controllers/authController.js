@@ -234,6 +234,153 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
     sendResponse(res, 200, {}, 'Si el email existe, enviamos un nuevo enlace de verificación');
 });
 
+
+
+const linkedinAuthLogin = asyncHandler(async (req, res) => {
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
+    const stateSecret = process.env.LINKEDIN_STATE_SECRET || 'linkedin_state_secret';
+
+    if (!clientId || !redirectUri) {
+        res.status(500);
+        throw new Error('Faltan LINKEDIN_CLIENT_ID o LINKEDIN_REDIRECT_URI en el entorno');
+    }
+
+    const rawState = crypto.randomBytes(24).toString('hex');
+    const stateHash = crypto
+        .createHmac('sha256', stateSecret)
+        .update(rawState)
+        .digest('hex');
+
+    res.cookie('li_oauth_state', rawState, {
+        ...getCookieOptions(),
+        httpOnly: true,
+        sameSite: 'lax',
+    });
+
+    const authUrl = new URL(
+        process.env.LINKEDIN_AUTH_URL || 'https://www.linkedin.com/oauth/v2/authorization'
+    );
+
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', 'openid profile email');
+    authUrl.searchParams.set('state', `${rawState}.${stateHash}`);
+
+    sendResponse(
+        res,
+        200,
+        {
+            authorizationUrl: authUrl.toString(),
+        },
+        'URL de autorización LinkedIn generada'
+    );
+});
+
+const linkedinAuthCallback = asyncHandler(async (req, res) => {
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+    const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
+    const stateSecret = process.env.LINKEDIN_STATE_SECRET || 'linkedin_state_secret';
+
+    if (!clientId || !clientSecret || !redirectUri) {
+        res.status(500);
+        throw new Error('Faltan credenciales de LinkedIn en el entorno');
+    }
+
+    const { code, state, error, error_description: errorDescription } = req.query;
+
+    if (error) {
+        res.status(400);
+        throw new Error(`LinkedIn devolvió error: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`);
+    }
+
+    if (!code || !state) {
+        res.status(400);
+        throw new Error('Callback de LinkedIn inválido: faltan code o state');
+    }
+
+    const [rawState, receivedHash] = String(state).split('.');
+    const expectedHash = crypto
+        .createHmac('sha256', stateSecret)
+        .update(rawState || '')
+        .digest('hex');
+
+    const stateFromCookie = req.cookies?.li_oauth_state;
+
+    if (!rawState || !receivedHash || receivedHash !== expectedHash || !stateFromCookie || stateFromCookie !== rawState) {
+        res.status(400);
+        throw new Error('State de LinkedIn inválido o expirado');
+    }
+
+    res.clearCookie('li_oauth_state', {
+        httpOnly: true,
+        sameSite: process.env.COOKIE_SAMESITE || 'lax',
+        secure: process.env.NODE_ENV === 'production',
+    });
+
+    const tokenUrl = process.env.LINKEDIN_TOKEN_URL || 'https://www.linkedin.com/oauth/v2/accessToken';
+    const tokenBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: String(code),
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        client_secret: clientSecret,
+    });
+
+    const tokenResp = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenBody.toString(),
+    });
+
+    if (!tokenResp.ok) {
+        const tokenErr = await tokenResp.text();
+        res.status(502);
+        throw new Error(`No se pudo obtener token de LinkedIn: ${tokenErr}`);
+    }
+
+    const tokenJson = await tokenResp.json();
+    const accessToken = tokenJson.access_token;
+
+    if (!accessToken) {
+        res.status(502);
+        throw new Error('LinkedIn no devolvió access_token');
+    }
+
+    const userInfoUrl = process.env.LINKEDIN_USERINFO_URL || 'https://api.linkedin.com/v2/userinfo';
+    const userInfoResp = await fetch(userInfoUrl, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+        },
+    });
+
+    if (!userInfoResp.ok) {
+        const userInfoErr = await userInfoResp.text();
+        res.status(502);
+        throw new Error(`No se pudo obtener userinfo de LinkedIn: ${userInfoErr}`);
+    }
+
+    const profile = await userInfoResp.json();
+
+    sendResponse(
+        res,
+        200,
+        {
+            linkedinSub: profile.sub || '',
+            name: profile.name || [profile.given_name, profile.family_name].filter(Boolean).join(' '),
+            email: profile.email || '',
+            linkedin: profile.profile || '',
+            linkedinPhotoUrl: profile.picture || '',
+            rawProfile: profile,
+        },
+        'Perfil de LinkedIn obtenido'
+    );
+});
+
 module.exports = {
     loginUser,
     getMe,
@@ -243,4 +390,6 @@ module.exports = {
     resetPassword,
     verifyEmail,
     resendVerificationEmail,
+    linkedinAuthLogin,
+    linkedinAuthCallback,
 };

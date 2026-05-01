@@ -205,6 +205,11 @@ const submitChallengeResponseValidation = [
         .withMessage('La respuesta es requerida')
         .isLength({ min: 3, max: 3000 })
         .withMessage('La respuesta debe tener entre 3 y 3000 caracteres'),
+    body('selectedOptionKey')
+        .optional()
+        .trim()
+        .isLength({ max: 10 })
+        .withMessage('selectedOptionKey no puede exceder 10 caracteres'),
 ];
 
 const uploadChallengeImageValidation = [

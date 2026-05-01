@@ -77,6 +77,7 @@ const submitChallengeResponse = asyncHandler(async (req, res) => {
     const username = req.body.username.trim();
     const usernameNormalized = username.toLowerCase();
     const answer = req.body.answer.trim();
+    const selectedOptionKey = normalizeString(req.body.selectedOptionKey).toUpperCase();
 
     const existingResponse = await ChallengeResponse.findOne({
         challenge: challenge._id,
@@ -95,6 +96,10 @@ const submitChallengeResponse = asyncHandler(async (req, res) => {
         answer,
     });
 
+    const isCorrect = Boolean(
+        selectedOptionKey && challenge.correctOptionKey && selectedOptionKey === String(challenge.correctOptionKey).toUpperCase()
+    );
+
     sendResponse(
         res,
         201,
@@ -103,6 +108,9 @@ const submitChallengeResponse = asyncHandler(async (req, res) => {
             challenge: created.challenge,
             username: created.username,
             answer: created.answer,
+            selectedOptionKey,
+            isCorrect,
+            explanation: challenge.explanation || '',
             createdAt: created.createdAt,
         },
         'Respuesta enviada'

@@ -12,6 +12,11 @@ const reviewSchema = new mongoose.Schema(
             trim: true,
             default: '',
         },
+        linkedin: {
+            type: String,
+            trim: true,
+            default: '',
+        },
         photoUrl: {
             type: String,
             required: [true, 'La foto es obligatoria'],
@@ -27,6 +32,11 @@ const reviewSchema = new mongoose.Schema(
             type: String,
             required: [true, 'La reseña es requerida'],
             trim: true,
+        },
+        source: {
+            type: String,
+            enum: ['linkedin', 'manual'],
+            default: 'linkedin',
         },
         status: {
             type: String,

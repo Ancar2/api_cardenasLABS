@@ -12,24 +12,44 @@ const listPublicReviews = asyncHandler(async (req, res) => {
 });
 
 const submitReview = asyncHandler(async (req, res) => {
-    const { name, company, rating, review, photoBase64 } = req.body;
+    const { name, company, linkedin, linkedinPhotoUrl, rating, review, photoBase64, withoutLinkedin } = req.body;
 
-    if (!photoBase64) {
-        res.status(400);
-        throw new Error('La foto del cliente es obligatoria');
+    const manualMode = Boolean(withoutLinkedin);
+
+    let finalPhotoUrl = '';
+    let source = 'linkedin';
+
+    if (manualMode) {
+        if (!photoBase64) {
+            res.status(400);
+            throw new Error('Si no usa LinkedIn, la foto es obligatoria (photoBase64)');
+        }
+
+        const uploadResult = await uploadImageToS3({
+            base64DataUrl: photoBase64,
+            folder: 'reviews',
+        });
+
+        finalPhotoUrl = uploadResult.url;
+        source = 'manual';
+    } else {
+        if (!linkedin || !linkedinPhotoUrl) {
+            res.status(400);
+            throw new Error('LinkedIn y su foto son obligatorios en modo con LinkedIn');
+        }
+
+        finalPhotoUrl = linkedinPhotoUrl;
+        source = 'linkedin';
     }
-
-    const uploadResult = await uploadImageToS3({
-        base64DataUrl: photoBase64,
-        folder: 'reviews',
-    });
 
     const createdReview = await Review.create({
         name,
         company,
+        linkedin: manualMode ? '' : linkedin,
         rating,
         review,
-        photoUrl: uploadResult.url,
+        photoUrl: finalPhotoUrl,
+        source,
         status: 'pending',
         isPublished: false,
     });
@@ -40,6 +60,7 @@ const submitReview = asyncHandler(async (req, res) => {
         {
             _id: createdReview._id,
             status: createdReview.status,
+            source: createdReview.source,
         },
         'Reseña recibida. Será revisada por el administrador.'
     );
@@ -71,7 +92,6 @@ const updateReviewModeration = asyncHandler(async (req, res) => {
         review.status = status;
     }
 
-    // Regla de negocio: aprobada = publicada, cualquier otro estado = no publicada.
     review.isPublished = review.status === 'approved';
 
     review.reviewedBy = req.user._id;

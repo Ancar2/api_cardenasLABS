@@ -26,6 +26,8 @@ router.post(
     validate,
     authController.resendVerificationEmail
 );
+router.get('/linkedin/login', authController.linkedinAuthLogin);
+router.get('/linkedin/callback', authController.linkedinAuthCallback);
 router.get('/me', protect, authController.getMe);
 
 module.exports = router;
