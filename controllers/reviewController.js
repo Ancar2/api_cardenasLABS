@@ -12,7 +12,7 @@ const listPublicReviews = asyncHandler(async (req, res) => {
 });
 
 const submitReview = asyncHandler(async (req, res) => {
-    const { name, company, linkedin, linkedinPhotoUrl, rating, review, photoBase64, withoutLinkedin } = req.body;
+    const { name, company, role, linkedin, linkedinPhotoUrl, rating, review, photoBase64, withoutLinkedin } = req.body;
 
     const manualMode = Boolean(withoutLinkedin);
 
@@ -45,6 +45,7 @@ const submitReview = asyncHandler(async (req, res) => {
     const createdReview = await Review.create({
         name,
         company,
+        role,
         linkedin: manualMode ? '' : linkedin,
         rating,
         review,

@@ -12,6 +12,11 @@ const reviewSchema = new mongoose.Schema(
             trim: true,
             default: '',
         },
+        role: {
+            type: String,
+            trim: true,
+            default: '',
+        },
         linkedin: {
             type: String,
             trim: true,

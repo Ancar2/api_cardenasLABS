@@ -9,6 +9,11 @@ const submitReviewValidation = [
         .trim()
         .isLength({ max: 120 })
         .withMessage('La empresa no puede exceder 120 caracteres'),
+    body('role')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 120 })
+        .withMessage('El cargo no puede exceder 120 caracteres'),
     body('withoutLinkedin')
         .optional()
         .isBoolean()
@@ -45,6 +50,12 @@ const submitReviewValidation = [
         const linkedin = String(value?.linkedin || '').trim();
         const linkedinPhotoUrl = String(value?.linkedinPhotoUrl || '').trim();
         const photoBase64 = String(value?.photoBase64 || '').trim();
+        const company = String(value?.company || '').trim();
+        const role = String(value?.role || '').trim();
+
+        if (company && !role) {
+            throw new Error('Si indicas empresa, el cargo es obligatorio');
+        }
 
         if (withoutLinkedin) {
             if (!photoBase64) {
