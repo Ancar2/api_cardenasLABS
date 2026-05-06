@@ -18,6 +18,16 @@ const submitReviewValidation = [
         .optional()
         .isBoolean()
         .withMessage('withoutLinkedin debe ser booleano'),
+    body('publishOnLinkedin')
+        .optional()
+        .isBoolean()
+        .withMessage('publishOnLinkedin debe ser booleano'),
+    body('publishSessionId')
+        .optional({ checkFalsy: true })
+        .isString()
+        .withMessage('publishSessionId debe ser string')
+        .isLength({ min: 16, max: 200 })
+        .withMessage('publishSessionId inválido'),
     body('linkedin')
         .optional({ checkFalsy: true })
         .trim()
@@ -65,15 +75,37 @@ const submitReviewValidation = [
         }
 
         if (!linkedin) {
-            throw new Error('El perfil de LinkedIn es obligatorio');
+            throw new Error('Confirma tu perfil de LinkedIn');
         }
 
         if (!linkedinPhotoUrl) {
             throw new Error('La foto desde LinkedIn es obligatoria');
         }
 
+        if (Boolean(value?.publishOnLinkedin) && !String(value?.publishSessionId || '').trim()) {
+            throw new Error('Debes reconectar LinkedIn para publicar la reseña en tu perfil');
+        }
+
         return true;
     }),
+];
+
+const publishToLinkedinValidation = [
+    body('publishSessionId')
+        .trim()
+        .notEmpty()
+        .withMessage('publishSessionId es requerido')
+        .isLength({ min: 16, max: 200 })
+        .withMessage('publishSessionId inválido'),
+    body('rating')
+        .isInt({ min: 1, max: 5 })
+        .withMessage('La calificacion debe ser entre 1 y 5'),
+    body('review')
+        .trim()
+        .notEmpty()
+        .withMessage('La reseña es requerida')
+        .isLength({ min: 10, max: 2000 })
+        .withMessage('La reseña debe tener entre 10 y 2000 caracteres'),
 ];
 
 const listAdminReviewsValidation = [
@@ -98,6 +130,7 @@ const moderateReviewValidation = [
 module.exports = {
     reviewIdValidation,
     submitReviewValidation,
+    publishToLinkedinValidation,
     listAdminReviewsValidation,
     moderateReviewValidation,
 };

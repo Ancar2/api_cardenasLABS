@@ -37,6 +37,11 @@ const submitLeadValidation = [
         .withMessage('La descripción del requerimiento es obligatoria')
         .isLength({ min: 15, max: 3000 })
         .withMessage('El requerimiento debe tener entre 15 y 3000 caracteres'),
+    body('source')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isIn(['website', 'ia'])
+        .withMessage('source inválido'),
 ];
 
 const listLeadsValidation = [

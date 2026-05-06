@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler');
 const Review = require('../models/review.model');
 const sendResponse = require('../utils/sendResponse');
 const { uploadImageToS3 } = require('../services/s3UploadService');
+const { consumePublishSession } = require('../services/linkedinPublishSessionStore');
+const { publishToLinkedin } = require('../services/linkedinPublishService');
 
 const listPublicReviews = asyncHandler(async (req, res) => {
     const reviews = await Review.find({ isPublished: true, status: 'approved' })
@@ -12,7 +14,19 @@ const listPublicReviews = asyncHandler(async (req, res) => {
 });
 
 const submitReview = asyncHandler(async (req, res) => {
-    const { name, company, role, linkedin, linkedinPhotoUrl, rating, review, photoBase64, withoutLinkedin } = req.body;
+    const {
+        name,
+        company,
+        role,
+        linkedin,
+        linkedinPhotoUrl,
+        rating,
+        review,
+        photoBase64,
+        withoutLinkedin,
+        publishOnLinkedin,
+        publishSessionId,
+    } = req.body;
 
     const manualMode = Boolean(withoutLinkedin);
 
@@ -35,7 +49,7 @@ const submitReview = asyncHandler(async (req, res) => {
     } else {
         if (!linkedin || !linkedinPhotoUrl) {
             res.status(400);
-            throw new Error('LinkedIn y su foto son obligatorios en modo con LinkedIn');
+            throw new Error('El perfil y la foto de LinkedIn son obligatorios en modo con LinkedIn');
         }
 
         finalPhotoUrl = linkedinPhotoUrl;
@@ -46,7 +60,7 @@ const submitReview = asyncHandler(async (req, res) => {
         name,
         company,
         role,
-        linkedin: manualMode ? '' : linkedin,
+        linkedin: manualMode ? '' : (linkedin || ''),
         rating,
         review,
         photoUrl: finalPhotoUrl,
@@ -55,6 +69,23 @@ const submitReview = asyncHandler(async (req, res) => {
         isPublished: false,
     });
 
+    let linkedinPostUrn = '';
+    if (!manualMode && publishOnLinkedin) {
+        const publishSession = consumePublishSession(String(publishSessionId || '').trim());
+        if (!publishSession?.accessToken || !publishSession?.linkedinSub) {
+            res.status(400);
+            throw new Error('La sesión de LinkedIn para publicar expiró. Conéctate nuevamente.');
+        }
+
+        const publishResult = await publishToLinkedin({
+            accessToken: publishSession.accessToken,
+            linkedinSub: publishSession.linkedinSub,
+            review,
+            rating,
+        });
+        linkedinPostUrn = publishResult.postUrn || '';
+    }
+
     sendResponse(
         res,
         201,
@@ -62,8 +93,35 @@ const submitReview = asyncHandler(async (req, res) => {
             _id: createdReview._id,
             status: createdReview.status,
             source: createdReview.source,
+            linkedinPostUrn,
         },
         'Reseña recibida. Será revisada por el administrador.'
+    );
+});
+
+const publishReviewToLinkedin = asyncHandler(async (req, res) => {
+    const { review, rating, publishSessionId } = req.body;
+    const publishSession = consumePublishSession(String(publishSessionId || '').trim());
+
+    if (!publishSession?.accessToken || !publishSession?.linkedinSub) {
+        res.status(400);
+        throw new Error('La sesión de LinkedIn para publicar expiró. Conéctate nuevamente.');
+    }
+
+    const publishResult = await publishToLinkedin({
+        accessToken: publishSession.accessToken,
+        linkedinSub: publishSession.linkedinSub,
+        review,
+        rating,
+    });
+
+    sendResponse(
+        res,
+        200,
+        {
+            postUrn: publishResult.postUrn || '',
+        },
+        'Reseña publicada en LinkedIn'
     );
 });
 
@@ -119,4 +177,5 @@ module.exports = {
     listAdminReviews,
     updateReviewModeration,
     deleteReview,
+    publishReviewToLinkedin,
 };

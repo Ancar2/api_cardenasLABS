@@ -4,6 +4,7 @@ const User = require('../models/user.model');
 const generateToken = require('../utils/generateToken');
 const sendResponse = require('../utils/sendResponse');
 const sendEmail = require('../services/emailService');
+const { createPublishSession } = require('../services/linkedinPublishSessionStore');
 
 const getCookieOptions = () => ({
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -45,6 +46,12 @@ const sendVerificationEmail = async (user, req, { failSilently = false } = {}) =
             email: user.email,
             subject: 'Verificación de cuenta',
             message,
+            title: 'Verifica Tu Cuenta',
+            subtitle: 'Seguridad de Acceso',
+            intro: `Hola ${user.name || ''}, te compartimos tu enlace de verificación para activar el acceso al dashboard de Cardenas Labs.`,
+            ctaLabel: 'Verificar correo',
+            ctaUrl: verifyUrl,
+            footerNote: 'El enlace expira en 30 minutos por seguridad.',
         });
         return true;
     } catch (err) {
@@ -154,6 +161,12 @@ const forgotPassword = asyncHandler(async (req, res) => {
             email: user.email,
             subject: 'Recuperación de contraseña',
             message,
+            title: 'Recupera Tu Contraseña',
+            subtitle: 'Restablecimiento Seguro',
+            intro: `Hola ${user.name || ''}, recibimos una solicitud para restablecer tu contraseña.`,
+            ctaLabel: 'Restablecer contraseña',
+            ctaUrl: resetUrl,
+            footerNote: 'Si no solicitaste este cambio, puedes ignorar este correo.',
         });
 
         sendResponse(res, 200, {}, 'Si el email existe, se enviaron instrucciones de recuperación');
@@ -265,7 +278,7 @@ const linkedinAuthLogin = asyncHandler(async (req, res) => {
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('scope', 'openid profile email');
+    authUrl.searchParams.set('scope', 'openid profile email w_member_social');
     authUrl.searchParams.set('state', `${rawState}.${stateHash}`);
 
     sendResponse(
@@ -366,19 +379,62 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
 
     const profile = await userInfoResp.json();
 
-    sendResponse(
-        res,
-        200,
-        {
+    const payload = {
+        success: true,
+        data: {
             linkedinSub: profile.sub || '',
             name: profile.name || [profile.given_name, profile.family_name].filter(Boolean).join(' '),
             email: profile.email || '',
             linkedin: profile.profile || '',
             linkedinPhotoUrl: profile.picture || '',
+            publishSessionId: createPublishSession({
+                accessToken,
+                linkedinSub: profile.sub || '',
+            }).id,
             rawProfile: profile,
         },
-        'Perfil de LinkedIn obtenido'
-    );
+        message: 'Perfil de LinkedIn obtenido',
+    };
+
+    const clientUrl = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
+    const safeClientUrl = String(clientUrl).replace(/\/+$/, '');
+    const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
+
+    res
+        .status(200)
+        .set('Content-Type', 'text/html; charset=utf-8')
+        .set('Cross-Origin-Opener-Policy', 'unsafe-none')
+        .set('Cross-Origin-Embedder-Policy', 'unsafe-none')
+        .set(
+            'Content-Security-Policy',
+            "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+        )
+        .send(`
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>LinkedIn conectado</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var payload = ${payloadJson};
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ source: 'linkedin-oauth', payload: payload }, '*');
+          }
+        } catch (e) {}
+
+        setTimeout(function () {
+          window.close();
+        }, 120);
+      })();
+    </script>
+    <p>LinkedIn conectado. Cerrando ventana...</p>
+  </body>
+</html>
+`);
 });
 
 module.exports = {
