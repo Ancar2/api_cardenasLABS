@@ -74,8 +74,7 @@ const startServer = async () => {
     const PORT = process.env.PORT || 5001;
     app.listen(PORT, () => {
         console.log(
-            `Servidor corriendo en modo ${
-                process.env.NODE_ENV || 'development'
+            `Servidor corriendo en modo ${process.env.NODE_ENV || 'development'
             } en el puerto ${PORT}`
         );
     });
