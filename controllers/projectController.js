@@ -38,7 +38,7 @@ const listPublicProjects = asyncHandler(async (req, res) => {
         filter.status = req.query.status;
     }
 
-    const projects = await Project.find(filter).sort({ createdAt: -1 });
+    const projects = await Project.find(filter).sort({ order: -1, createdAt: -1 });
     sendResponse(res, 200, projects, 'Proyectos públicos');
 });
 
@@ -62,7 +62,7 @@ const listAdminProjects = asyncHandler(async (req, res) => {
         filter.isPublished = req.query.isPublished === 'true';
     }
 
-    const projects = await Project.find(filter).sort({ createdAt: -1 });
+    const projects = await Project.find(filter).sort({ order: -1, createdAt: -1 });
     sendResponse(res, 200, projects, 'Proyectos (admin)');
 });
 
@@ -75,6 +75,7 @@ const createProject = asyncHandler(async (req, res) => {
         status,
         screenshots,
         isPublished,
+        order,
     } = req.body;
 
     const project = await Project.create({
@@ -85,6 +86,7 @@ const createProject = asyncHandler(async (req, res) => {
         status,
         screenshots: normalizeScreenshots(screenshots),
         isPublished,
+        order: order !== undefined ? Number(order) : 0,
     });
 
     sendResponse(res, 201, project, 'Proyecto creado');
@@ -97,7 +99,7 @@ const updateProject = asyncHandler(async (req, res) => {
         throw new Error('Proyecto no encontrado');
     }
 
-    const fields = ['title', 'domain', 'description', 'status', 'isPublished'];
+    const fields = ['title', 'domain', 'description', 'status', 'isPublished', 'order'];
     fields.forEach((field) => {
         if (req.body[field] !== undefined) {
             project[field] = req.body[field];
