@@ -17,6 +17,13 @@ router.get('/public/:slug', quotationController.getPublicQuotation);
 router.get('/download/:slug', quotationController.downloadPdf);
 
 // Rutas administrativas (Protegidas)
+router.get(
+  '/next-number',
+  protect,
+  admin,
+  quotationController.getNextQuotationNumber
+);
+
 router.post(
   '/',
   protect,

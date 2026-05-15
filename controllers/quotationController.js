@@ -143,6 +143,21 @@ const downloadPdf = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Obtener el siguiente número de cotización correlativo
+// @route   GET /api/quotations/next-number
+// @access  Private/Admin
+const getNextQuotationNumber = asyncHandler(async (req, res) => {
+  const count = await Quotation.countDocuments();
+  const year = new Date().getFullYear();
+  // El usuario quiere empezar desde la 22. 
+  // Si hay 0 en la DB, el número será 22. Si hay 1, será 23, etc.
+  const startingNumber = 22;
+  const nextNumber = (startingNumber + count).toString().padStart(3, '0');
+  const code = `COT-${year}-${nextNumber}`;
+
+  sendResponse(res, 200, { code }, 'Siguiente número de cotización generado');
+});
+
 module.exports = {
   createQuotation,
   getQuotations,
@@ -151,4 +166,5 @@ module.exports = {
   updateQuotation,
   deleteQuotation,
   downloadPdf,
+  getNextQuotationNumber,
 };
