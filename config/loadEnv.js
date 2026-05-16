@@ -1,3 +1,4 @@
+const path = require('path');
 const dotenv = require('dotenv');
 const {
     SecretsManagerClient,
@@ -38,7 +39,7 @@ const loadAwsSecrets = async () => {
 };
 
 const loadEnv = async () => {
-    dotenv.config();
+    dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
     if (process.env.NODE_ENV !== 'production') {
         return;
