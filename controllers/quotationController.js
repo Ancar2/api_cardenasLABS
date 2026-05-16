@@ -98,7 +98,7 @@ const downloadPdf = asyncHandler(async (req, res) => {
   }
 
   // URL del frontend donde está la cotización (Asegurarse que sea accesible por el backend)
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+  const frontendUrl = process.env.CLIENT_URL || 'https://cardenaslabs.com';
   const url = `${frontendUrl}/cotizacion/${req.params.slug}`;
 
   try {
