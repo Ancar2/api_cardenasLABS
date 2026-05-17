@@ -26,6 +26,7 @@ const submitReview = asyncHandler(async (req, res) => {
         withoutLinkedin,
         publishOnLinkedin,
         publishSessionId,
+        socialNetwork,
     } = req.body;
 
     const manualMode = Boolean(withoutLinkedin);
@@ -39,12 +40,21 @@ const submitReview = asyncHandler(async (req, res) => {
             throw new Error('Si no usa LinkedIn, la foto es obligatoria (photoBase64)');
         }
 
-        const uploadResult = await uploadImageToS3({
-            base64DataUrl: photoBase64,
-            folder: 'reviews',
-        });
+        const hasAwsCredentials = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;
 
-        finalPhotoUrl = uploadResult.url;
+        if (hasAwsCredentials) {
+            const uploadResult = await uploadImageToS3({
+                base64DataUrl: photoBase64,
+                folder: 'reviews',
+            });
+            finalPhotoUrl = uploadResult.url;
+        } else {
+            // Fallback para desarrollo local sin credenciales AWS:
+            // guarda el base64 directamente como photoUrl
+            finalPhotoUrl = photoBase64;
+            console.warn('[DEV] Sin credenciales AWS: foto guardada como base64 (solo para desarrollo local).');
+        }
+
         source = 'manual';
     } else {
         if (!linkedin || !linkedinPhotoUrl) {
@@ -60,7 +70,8 @@ const submitReview = asyncHandler(async (req, res) => {
         name,
         company,
         role,
-        linkedin: manualMode ? '' : (linkedin || ''),
+        linkedin: linkedin || '',
+        socialNetwork: manualMode ? (socialNetwork || '') : 'linkedin',
         rating,
         review,
         photoUrl: finalPhotoUrl,

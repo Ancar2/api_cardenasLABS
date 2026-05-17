@@ -22,6 +22,11 @@ const reviewSchema = new mongoose.Schema(
             trim: true,
             default: '',
         },
+        socialNetwork: {
+            type: String,
+            enum: ['linkedin', 'instagram', 'facebook', ''],
+            default: '',
+        },
         photoUrl: {
             type: String,
             required: [true, 'La foto es obligatoria'],

@@ -32,9 +32,11 @@ const submitReviewValidation = [
         .optional({ checkFalsy: true })
         .trim()
         .isURL({ require_protocol: true })
-        .withMessage('El perfil de LinkedIn debe ser una URL válida')
-        .matches(/^https?:\/\/(www\.)?linkedin\.com\//i)
-        .withMessage('El perfil debe pertenecer a linkedin.com'),
+        .withMessage('El enlace de red social debe ser una URL válida'),
+    body('socialNetwork')
+        .optional({ checkFalsy: true })
+        .isIn(['linkedin', 'instagram', 'facebook', ''])
+        .withMessage('Red social inválida'),
     body('linkedinPhotoUrl')
         .optional({ checkFalsy: true })
         .trim()
@@ -71,7 +73,13 @@ const submitReviewValidation = [
             if (!photoBase64) {
                 throw new Error('Si no usa LinkedIn, la foto es obligatoria (photoBase64)');
             }
+            // En modo manual el socialLink es opcional, sin restricción de dominio
             return true;
+        }
+
+        // Modo LinkedIn: validar que el enlace sea de linkedin.com
+        if (linkedin && !/^https?:\/\/(www\.)?linkedin\.com\//i.test(linkedin)) {
+            throw new Error('En modo LinkedIn, el perfil debe pertenecer a linkedin.com');
         }
 
         if (!linkedin) {
