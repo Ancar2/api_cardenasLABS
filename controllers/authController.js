@@ -292,129 +292,23 @@ const linkedinAuthLogin = asyncHandler(async (req, res) => {
 });
 
 const linkedinAuthCallback = asyncHandler(async (req, res) => {
-    const clientId = process.env.LINKEDIN_CLIENT_ID;
-    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
-    const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
-    const stateSecret = process.env.LINKEDIN_STATE_SECRET || 'linkedin_state_secret';
-
-    if (!clientId || !clientSecret || !redirectUri) {
-        res.status(500);
-        throw new Error('Faltan credenciales de LinkedIn en el entorno');
-    }
-
-    const { code, state, error, error_description: errorDescription } = req.query;
-
-    if (error) {
-        res.status(400);
-        throw new Error(`LinkedIn devolvió error: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`);
-    }
-
-    if (!code || !state) {
-        res.status(400);
-        throw new Error('Callback de LinkedIn inválido: faltan code o state');
-    }
-
-    const [rawState, receivedHash] = String(state).split('.');
-    const expectedHash = crypto
-        .createHmac('sha256', stateSecret)
-        .update(rawState || '')
-        .digest('hex');
-
-    const stateFromCookie = req.cookies?.li_oauth_state;
-
-    if (!rawState || !receivedHash || receivedHash !== expectedHash || !stateFromCookie || stateFromCookie !== rawState) {
-        res.status(400);
-        throw new Error('State de LinkedIn inválido o expirado');
-    }
-
-    res.clearCookie('li_oauth_state', {
-        httpOnly: true,
-        sameSite: process.env.COOKIE_SAMESITE || 'lax',
-        secure: process.env.NODE_ENV === 'production',
-    });
-
-    const tokenUrl = process.env.LINKEDIN_TOKEN_URL || 'https://www.linkedin.com/oauth/v2/accessToken';
-    const tokenBody = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: String(code),
-        redirect_uri: redirectUri,
-        client_id: clientId,
-        client_secret: clientSecret,
-    });
-
-    const tokenResp = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: tokenBody.toString(),
-    });
-
-    if (!tokenResp.ok) {
-        const tokenErr = await tokenResp.text();
-        res.status(502);
-        throw new Error(`No se pudo obtener token de LinkedIn: ${tokenErr}`);
-    }
-
-    const tokenJson = await tokenResp.json();
-    const accessToken = tokenJson.access_token;
-
-    if (!accessToken) {
-        res.status(502);
-        throw new Error('LinkedIn no devolvió access_token');
-    }
-
-    const userInfoUrl = process.env.LINKEDIN_USERINFO_URL || 'https://api.linkedin.com/v2/userinfo';
-    const userInfoResp = await fetch(userInfoUrl, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
-
-    if (!userInfoResp.ok) {
-        const userInfoErr = await userInfoResp.text();
-        res.status(502);
-        throw new Error(`No se pudo obtener userinfo de LinkedIn: ${userInfoErr}`);
-    }
-
-    const profile = await userInfoResp.json();
-
-    const payload = {
-        success: true,
-        data: {
-            linkedinSub: profile.sub || '',
-            name: profile.name || [profile.given_name, profile.family_name].filter(Boolean).join(' '),
-            email: profile.email || '',
-            linkedin: profile.profile || '',
-            linkedinPhotoUrl: profile.picture || '',
-            publishSessionId: createPublishSession({
-                accessToken,
-                linkedinSub: profile.sub || '',
-            }).id,
-            rawProfile: profile,
-        },
-        message: 'Perfil de LinkedIn obtenido',
-    };
-
-    const clientUrl = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
-    const safeClientUrl = String(clientUrl).replace(/\/+$/, '');
-    const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
-
-    res
-        .status(200)
-        .set('Content-Type', 'text/html; charset=utf-8')
-        .set('Cross-Origin-Opener-Policy', 'unsafe-none')
-        .set('Cross-Origin-Embedder-Policy', 'unsafe-none')
-        .set(
-            'Content-Security-Policy',
-            "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
-        )
-        .send(`
+    const sendHtmlResponse = (payload) => {
+        const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
+        res
+            .status(200)
+            .set('Content-Type', 'text/html; charset=utf-8')
+            .set('Cross-Origin-Opener-Policy', 'unsafe-none')
+            .set('Cross-Origin-Embedder-Policy', 'unsafe-none')
+            .set(
+                'Content-Security-Policy',
+                "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+            )
+            .send(`
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>LinkedIn conectado</title>
+    <title>LinkedIn Auth</title>
   </head>
   <body>
     <script>
@@ -431,10 +325,114 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
         }, 120);
       })();
     </script>
-    <p>LinkedIn conectado. Cerrando ventana...</p>
+    <p>Procesando... Cerrando ventana...</p>
   </body>
 </html>
 `);
+    };
+
+    try {
+        const clientId = process.env.LINKEDIN_CLIENT_ID;
+        const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+        const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
+        const stateSecret = process.env.LINKEDIN_STATE_SECRET || 'linkedin_state_secret';
+
+        if (!clientId || !clientSecret || !redirectUri) {
+            return sendHtmlResponse({ success: false, message: 'Faltan credenciales de LinkedIn en el entorno' });
+        }
+
+        const { code, state, error, error_description: errorDescription } = req.query;
+
+        if (error) {
+            return sendHtmlResponse({ success: false, message: `Has cancelado la conexión o ha ocurrido un error (${error})` });
+        }
+
+        if (!code || !state) {
+            return sendHtmlResponse({ success: false, message: 'Callback de LinkedIn inválido: faltan code o state' });
+        }
+
+        const [rawState, receivedHash] = String(state).split('.');
+        const expectedHash = crypto
+            .createHmac('sha256', stateSecret)
+            .update(rawState || '')
+            .digest('hex');
+
+        const stateFromCookie = req.cookies?.li_oauth_state;
+
+        if (!rawState || !receivedHash || receivedHash !== expectedHash || !stateFromCookie || stateFromCookie !== rawState) {
+            return sendHtmlResponse({ success: false, message: 'State de LinkedIn inválido o expirado. Por favor, intenta nuevamente.' });
+        }
+
+        res.clearCookie('li_oauth_state', {
+            httpOnly: true,
+            sameSite: process.env.COOKIE_SAMESITE || 'lax',
+            secure: process.env.NODE_ENV === 'production',
+        });
+
+        const tokenUrl = process.env.LINKEDIN_TOKEN_URL || 'https://www.linkedin.com/oauth/v2/accessToken';
+        const tokenBody = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: String(code),
+            redirect_uri: redirectUri,
+            client_id: clientId,
+            client_secret: clientSecret,
+        });
+
+        const tokenResp = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: tokenBody.toString(),
+        });
+
+        if (!tokenResp.ok) {
+            const tokenErr = await tokenResp.text();
+            return sendHtmlResponse({ success: false, message: 'No se pudo obtener token de LinkedIn' });
+        }
+
+        const tokenJson = await tokenResp.json();
+        const accessToken = tokenJson.access_token;
+
+        if (!accessToken) {
+            return sendHtmlResponse({ success: false, message: 'LinkedIn no devolvió el token de acceso' });
+        }
+
+        const userInfoUrl = process.env.LINKEDIN_USERINFO_URL || 'https://api.linkedin.com/v2/userinfo';
+        const userInfoResp = await fetch(userInfoUrl, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!userInfoResp.ok) {
+            const userInfoErr = await userInfoResp.text();
+            return sendHtmlResponse({ success: false, message: 'No se pudo obtener el perfil de LinkedIn' });
+        }
+
+        const profile = await userInfoResp.json();
+
+        const payload = {
+            success: true,
+            data: {
+                linkedinSub: profile.sub || '',
+                name: profile.name || [profile.given_name, profile.family_name].filter(Boolean).join(' '),
+                email: profile.email || '',
+                linkedin: profile.profile || '',
+                linkedinPhotoUrl: profile.picture || '',
+                publishSessionId: createPublishSession({
+                    accessToken,
+                    linkedinSub: profile.sub || '',
+                }).id,
+                rawProfile: profile,
+            },
+            message: 'Perfil de LinkedIn obtenido',
+        };
+
+        sendHtmlResponse(payload);
+    } catch (err) {
+        sendHtmlResponse({ success: false, message: `Error procesando la conexión: ${err.message}` });
+    }
 });
 
 module.exports = {

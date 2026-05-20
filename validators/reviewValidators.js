@@ -31,7 +31,7 @@ const submitReviewValidation = [
     body('linkedin')
         .optional({ checkFalsy: true })
         .trim()
-        .isURL({ require_protocol: true })
+        .isURL({ require_protocol: false })
         .withMessage('El enlace de red social debe ser una URL válida'),
     body('socialNetwork')
         .optional({ checkFalsy: true })
@@ -78,7 +78,7 @@ const submitReviewValidation = [
         }
 
         // Modo LinkedIn: validar que el enlace sea de linkedin.com
-        if (linkedin && !/^https?:\/\/(www\.)?linkedin\.com\//i.test(linkedin)) {
+        if (linkedin && !/^(https?:\/\/)?(www\.)?linkedin\.com\//i.test(linkedin)) {
             throw new Error('En modo LinkedIn, el perfil debe pertenecer a linkedin.com');
         }
 
