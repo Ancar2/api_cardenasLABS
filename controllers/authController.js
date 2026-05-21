@@ -292,43 +292,15 @@ const linkedinAuthLogin = asyncHandler(async (req, res) => {
 });
 
 const linkedinAuthCallback = asyncHandler(async (req, res) => {
-    const sendHtmlResponse = (payload) => {
-        const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
-        res
-            .status(200)
-            .set('Content-Type', 'text/html; charset=utf-8')
-            .set('Cross-Origin-Opener-Policy', 'unsafe-none')
-            .set('Cross-Origin-Embedder-Policy', 'unsafe-none')
-            .set(
-                'Content-Security-Policy',
-                "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
-            )
-            .send(`
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>LinkedIn Auth</title>
-  </head>
-  <body>
-    <script>
-      (function () {
-        var payload = ${payloadJson};
-        try {
-          if (window.opener && !window.opener.closed) {
-            window.opener.postMessage({ source: 'linkedin-oauth', payload: payload }, '*');
-          }
-        } catch (e) {}
-
-        setTimeout(function () {
-          window.close();
-        }, 120);
-      })();
-    </script>
-    <p>Procesando... Cerrando ventana...</p>
-  </body>
-</html>
-`);
+    const frontendRedirect = (payload) => {
+        const clientUrl = process.env.CLIENT_URL || 'https://cardenaslabs.com';
+        const strippedPayload = { ...payload };
+        // Remover rawProfile para no exceder el límite de URL
+        if (strippedPayload.data && strippedPayload.data.rawProfile) {
+            delete strippedPayload.data.rawProfile;
+        }
+        const payloadStr = Buffer.from(JSON.stringify(strippedPayload)).toString('base64url');
+        res.redirect(`${clientUrl}/home?linkedin_payload=${payloadStr}`);
     };
 
     try {
@@ -338,17 +310,17 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
         const stateSecret = process.env.LINKEDIN_STATE_SECRET || 'linkedin_state_secret';
 
         if (!clientId || !clientSecret || !redirectUri) {
-            return sendHtmlResponse({ success: false, message: 'Faltan credenciales de LinkedIn en el entorno' });
+            return frontendRedirect({ success: false, message: 'Faltan credenciales de LinkedIn en el entorno' });
         }
 
         const { code, state, error, error_description: errorDescription } = req.query;
 
         if (error) {
-            return sendHtmlResponse({ success: false, message: `Has cancelado la conexión o ha ocurrido un error (${error})` });
+            return frontendRedirect({ success: false, message: `Has cancelado la conexión o ha ocurrido un error (${error})` });
         }
 
         if (!code || !state) {
-            return sendHtmlResponse({ success: false, message: 'Callback de LinkedIn inválido: faltan code o state' });
+            return frontendRedirect({ success: false, message: 'Callback de LinkedIn inválido: faltan code o state' });
         }
 
         const [rawState, receivedHash] = String(state).split('.');
@@ -360,7 +332,7 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
         const stateFromCookie = req.cookies?.li_oauth_state;
 
         if (!rawState || !receivedHash || receivedHash !== expectedHash || !stateFromCookie || stateFromCookie !== rawState) {
-            return sendHtmlResponse({ success: false, message: 'State de LinkedIn inválido o expirado. Por favor, intenta nuevamente.' });
+            return frontendRedirect({ success: false, message: 'State de LinkedIn inválido o expirado. Por favor, intenta nuevamente.' });
         }
 
         res.clearCookie('li_oauth_state', {
@@ -388,14 +360,14 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
 
         if (!tokenResp.ok) {
             const tokenErr = await tokenResp.text();
-            return sendHtmlResponse({ success: false, message: 'No se pudo obtener token de LinkedIn' });
+            return frontendRedirect({ success: false, message: 'No se pudo obtener token de LinkedIn' });
         }
 
         const tokenJson = await tokenResp.json();
         const accessToken = tokenJson.access_token;
 
         if (!accessToken) {
-            return sendHtmlResponse({ success: false, message: 'LinkedIn no devolvió el token de acceso' });
+            return frontendRedirect({ success: false, message: 'LinkedIn no devolvió el token de acceso' });
         }
 
         const userInfoUrl = process.env.LINKEDIN_USERINFO_URL || 'https://api.linkedin.com/v2/userinfo';
@@ -407,7 +379,7 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
 
         if (!userInfoResp.ok) {
             const userInfoErr = await userInfoResp.text();
-            return sendHtmlResponse({ success: false, message: 'No se pudo obtener el perfil de LinkedIn' });
+            return frontendRedirect({ success: false, message: 'No se pudo obtener el perfil de LinkedIn' });
         }
 
         const profile = await userInfoResp.json();
@@ -429,9 +401,9 @@ const linkedinAuthCallback = asyncHandler(async (req, res) => {
             message: 'Perfil de LinkedIn obtenido',
         };
 
-        sendHtmlResponse(payload);
+        frontendRedirect(payload);
     } catch (err) {
-        sendHtmlResponse({ success: false, message: `Error procesando la conexión: ${err.message}` });
+        frontendRedirect({ success: false, message: `Error procesando la conexión: ${err.message}` });
     }
 });
 
